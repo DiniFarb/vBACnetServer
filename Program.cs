@@ -1,4 +1,30 @@
-﻿using System;
+﻿/**************************************************************************
+*                           MIT License
+* 
+* Copyright (C) 2015 Morten Kvistgaard <mk@pch-engineering.dk>
+*                    Frederic Chaxel <fchaxel@free.fr> 
+*
+* Permission is hereby granted, free of charge, to any person obtaining
+* a copy of this software and associated documentation files (the
+* "Software"), to deal in the Software without restriction, including
+* without limitation the rights to use, copy, modify, merge, publish,
+* distribute, sublicense, and/or sell copies of the Software, and to
+* permit persons to whom the Software is furnished to do so, subject to
+* the following conditions:
+*
+* The above copyright notice and this permission notice shall be included
+* in all copies or substantial portions of the Software.
+*
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+* TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*
+*********************************************************************/
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +33,7 @@ using System.Threading;
 using System.IO.BACnet.Storage;
 using System.Diagnostics;
 
-namespace vBACnetServer
+namespace BasicServer
 {
     //
     // The quite minimal Server based on Yabe code
@@ -32,6 +58,8 @@ namespace vBACnetServer
                 BacnetObjectId OBJECT_ANALOG_VALUE_0 = new BacnetObjectId(BacnetObjectTypes.OBJECT_ANALOG_VALUE, 0);
                 BacnetObjectId OBJECT_ANALOG_INPUT_0 = new BacnetObjectId(BacnetObjectTypes.OBJECT_ANALOG_INPUT, 0);
 
+                Console.WriteLine(OBJECT_ANALOG_VALUE_0.Type + OBJECT_ANALOG_VALUE_0.Instance);
+
                 double count=0;
 
                 for (; ; )
@@ -45,19 +73,17 @@ namespace vBACnetServer
                         m_storage.ReadProperty(OBJECT_ANALOG_VALUE_0, BacnetPropertyIds.PROP_PRESENT_VALUE, 1, out valtoread);
                         // Get the first ... and here the only element
                         double coef = Convert.ToDouble(valtoread[0].Value);
-
-                        float sin = (float)(coef * Math.Sin(count));
                         // Write the Present Value
+                        float sin = (float)(coef * Math.Sin(count));
                         IList<BacnetValue> valtowrite = new BacnetValue[1] { new BacnetValue(sin) };
+                        Console.WriteLine(valtowrite.ElementAt(0).Value);
                         m_storage.WriteProperty(OBJECT_ANALOG_INPUT_0, BacnetPropertyIds.PROP_PRESENT_VALUE, 1, valtowrite, true);
                     }
                     Thread.Sleep(1000);
                     count += 0.1;
                 }
             }
-            catch (Exception e) {
-                Console.WriteLine("Failed!" + e);
-             }
+            catch (Exception e) { Console.WriteLine(e.Message); };
         }
 
         /*****************************************************************************************************/
@@ -65,10 +91,17 @@ namespace vBACnetServer
         {
             // Load the device descriptor from the embedded resource file
             // Get myId as own device id
-            m_storage = DeviceStorage.Load("./DeviceDescriptor.xml");
+            m_storage = DeviceStorage.Load("DeviceDescriptor.xml");
 
+            // Bacnet on UDP/IP/Ethernet
             bacnet_client = new BacnetClient(new BacnetIpUdpProtocolTransport(0xBAC0, false));
-            
+            // or Bacnet Mstp on COM4 à 38400 bps, own master id 8
+            // m_bacnet_client = new BacnetClient(new BacnetMstpProtocolTransport("COM4", 38400, 8);
+            // Or Bacnet Ethernet
+            // bacnet_client = new BacnetClient(new BacnetEthernetProtocolTransport("Connexion au réseau local"));    
+            // Or Bacnet on IPV6
+            // bacnet_client = new BacnetClient(new BacnetIpV6UdpProtocolTransport(0xBAC0));
+
             bacnet_client.OnWhoIs += new BacnetClient.WhoIsHandler(handler_OnWhoIs);
             bacnet_client.OnIam += new BacnetClient.IamHandler(bacnet_client_OnIam);
             bacnet_client.OnReadPropertyRequest += new BacnetClient.ReadPropertyRequestHandler(handler_OnReadPropertyRequest);
